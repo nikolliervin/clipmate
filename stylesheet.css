@@ -1,0 +1,26 @@
+.clipmate-menu-item {
+    max-width: 400px;
+}
+
+.clipboard-item-box {
+    padding: 4px;
+    spacing: 8px;
+}
+
+.clipboard-trash-button {
+    border-radius: 9999px;
+    padding: 4px;
+}
+
+.clipboard-trash-button:hover {
+    background-color: rgba(255, 0, 0, 0.2);
+}
+
+.clipboard-trash-icon {
+    icon-size: 16px;
+}
+
+.clipboard-image-icon {
+    icon-size: 16px;
+    color: #42a5f5;
+} 
