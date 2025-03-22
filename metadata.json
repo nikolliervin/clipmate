@@ -1,0 +1,9 @@
+{
+    "name": "ClipMate",
+    "description": "A clipboard manager for GNOME Shell. Saves clipboard history and allows for quick access to copied items.",
+    "uuid": "clipmate@clipmate.github.io",
+    "shell-version": ["42", "43", "44"],
+    "url": "",
+    "version": 1,
+    "debug": true
+} 
