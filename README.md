@@ -16,7 +16,7 @@ ClipMate is a clipboard manager extension for GNOME Shell that provides a conven
 
 1. Clone this repository:
    ```
-   git clone https://github.com/yourusername/clipmate.git
+   git clone https://github.com/nikolliervin/clipmate.git
    ```
 
 2. Install the extension:
@@ -55,4 +55,4 @@ Open the extension settings to configure:
 
 ## License
 
-This extension is distributed under the GNU General Public License v3.0. 
+This extension is distributed under the MIT License. 

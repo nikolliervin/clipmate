@@ -44,7 +44,6 @@ function prettyPrint(name, obj, recurse, _indent) {
     }
 }
 
-// Process registry before saving
 function prepareRegistryForSaving(registry) {
     try {
         if (!registry || !Array.isArray(registry)) {

@@ -11,6 +11,7 @@ function openModal(title, message, ok_label, cancel_label, callback) {
   }
 }
 
+// Modal dialog implementation
 const Modal = GObject.registerClass(
   class Modal extends ModalDialog.ModalDialog {
     _init(title, desc, ok_label, cancel_label, callback) {
@@ -60,4 +61,4 @@ const Modal = GObject.registerClass(
       ]);
     }
   }
-);
+); 
