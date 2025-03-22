@@ -53,6 +53,15 @@ Open the extension settings to configure:
 - Confirmation for clearing history
 - Keyboard shortcuts
 
+## Showcase
+![Screenshot from 2025-03-22 21-23-24](https://github.com/user-attachments/assets/d90fe361-3a62-4000-9df3-95d73710ff85)
+
+![Screenshot from 2025-03-22 21-24-25](https://github.com/user-attachments/assets/d69cdcef-5281-457d-9322-dfa3a7e8f001)
+
+![Screenshot from 2025-03-22 21-25-06](https://github.com/user-attachments/assets/4874a19f-ae4e-4ae0-a2af-f146d3324fcd)
+
+
+
 ## License
 
 This extension is distributed under the MIT License. 
