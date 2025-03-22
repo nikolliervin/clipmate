@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<schemalist>
+  <schema id="org.gnome.shell.extensions.clipmate" path="/org/gnome/shell/extensions/clipmate/">
+    <!-- Keyboard shortcut to toggle the menu -->
+    <key name="toggle-clipboard-menu" type="as">
+      <default><![CDATA[['<Super>c']]]></default>
+      <summary>Keyboard shortcut to toggle the clipboard menu</summary>
+      <description>Keyboard shortcut to show/hide the clipboard history menu at the cursor position</description>
+    </key>
+    
+    <!-- Maximum number of items in history -->
+    <key name="history-size" type="i">
+      <default>20</default>
+      <summary>Number of items to keep in history</summary>
+      <description>Maximum number of clipboard items to remember</description>
+      <range min="5" max="50"/>
+    </key>
+    
+    <!-- Preview size in topbar -->
+    <key name="topbar-preview-size" type="i">
+      <default>15</default>
+      <summary>Number of characters to show in topbar</summary>
+      <description>Length of text preview shown in the panel</description>
+      <range min="5" max="100"/>
+    </key>
+    
+    <!-- Show notification on copy -->
+    <key name="notify-on-copy" type="b">
+      <default>false</default>
+      <summary>Show notification on copy</summary>
+      <description>Whether to show a notification when something is copied to clipboard</description>
+    </key>
+    
+    <!-- Confirm before clearing history -->
+    <key name="confirm-clear" type="b">
+      <default>true</default>
+      <summary>Confirm before clearing history</summary>
+      <description>Whether to show a confirmation dialog before clearing clipboard history</description>
+    </key>
+    
+    <!-- Enable keyboard shortcuts -->
+    <key name="enable-keybindings" type="b">
+      <default>true</default>
+      <summary>Enable keyboard shortcuts</summary>
+      <description>Enable or disable keyboard shortcuts for accessing clipboard history</description>
+    </key>
+    
+    <!-- Enable debug mode -->
+    <key name="debug-mode" type="b">
+      <default>false</default>
+      <summary>Enable debug mode</summary>
+      <description>Enable debug logging and tools for development</description>
+    </key>
+  </schema>
+</schemalist> 
