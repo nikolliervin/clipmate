@@ -13,7 +13,8 @@ const Fields = {
     CONFIRM_ON_CLEAR: 'confirm-clear',
     ENABLE_KEYBINDING: 'enable-keybindings',
     TOGGLE_MENU: 'toggle-clipboard-menu',
-    DEBUG_MODE: 'debug-mode'
+    DEBUG_MODE: 'debug-mode',
+    INCOGNITO_MODE: 'incognito-mode'
 };
 
 // Schema name
@@ -178,6 +179,30 @@ function buildPrefsWidget() {
     
     prefsWidget.attach(enableKeybindingLabel, 0, row, 1, 1);
     prefsWidget.attach(enableKeybindingSwitch, 1, row, 1, 1);
+    row++;
+
+    // Incognito mode setting
+    let incognitoModeLabel = new Gtk.Label({
+        label: 'Enable incognito mode:',
+        halign: Gtk.Align.START,
+        visible: true
+    });
+    
+    let incognitoModeSwitch = new Gtk.Switch({
+        active: false,
+        halign: Gtk.Align.END,
+        visible: true
+    });
+    
+    settings.bind(
+        Fields.INCOGNITO_MODE,
+        incognitoModeSwitch,
+        'active',
+        Gio.SettingsBindFlags.DEFAULT
+    );
+    
+    prefsWidget.attach(incognitoModeLabel, 0, row, 1, 1);
+    prefsWidget.attach(incognitoModeSwitch, 1, row, 1, 1);
     row++;
 
     // Debug mode setting

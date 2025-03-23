@@ -9,6 +9,7 @@ ClipMate is a clipboard manager extension for GNOME Shell that provides a conven
 - **Keyboard Shortcuts**: Quick access with customizable shortcuts
 - **Image Support**: Saves and recalls copied images
 - **Favorites**: Mark entries as favorites for quick access
+- **Incognito Mode**: Temporarily stop recording clipboard items for privacy
 - **Notifications**: Optional notifications when items are copied
 - **Trash Icon**: Delete individual items from history
 - **Backup/Restore**: Export and import your clipboard history to JSON files
@@ -44,6 +45,7 @@ ClipMate is a clipboard manager extension for GNOME Shell that provides a conven
 - Click on an item to copy it to clipboard
 - Click the star icon to mark an item as a favorite (it will appear at the top)
 - Click the trash icon on an item to remove it from history
+- Toggle "Incognito Mode" to temporarily stop recording clipboard items (the icon changes to a lock)
 - Click "Export Clipboard History" to save a backup file
 - Click "Import Clipboard History" to restore from a backup file
 - Click "Clear History" to remove all items

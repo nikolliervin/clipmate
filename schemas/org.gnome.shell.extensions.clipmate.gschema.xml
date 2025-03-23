@@ -51,5 +51,12 @@
       <summary>Enable debug mode</summary>
       <description>Enable debug logging and tools for development</description>
     </key>
+    
+    <!-- Incognito mode toggle -->
+    <key name="incognito-mode" type="b">
+      <default>false</default>
+      <summary>Enable incognito mode</summary>
+      <description>When enabled, clipboard contents will not be recorded in history</description>
+    </key>
   </schema>
 </schemalist> 

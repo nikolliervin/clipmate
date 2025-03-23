@@ -22,6 +22,7 @@ let NOTIFY_ON_COPY = false;
 let CONFIRM_ON_CLEAR = true;
 let ENABLE_KEYBINDING = true;
 let DEBUG_MODE = false;
+let INCOGNITO_MODE = false;
 
 const ClipItemType = {
     TEXT: 0,
@@ -151,11 +152,59 @@ class ClipPopupMenu {
             hasItems = true;
         }
         
-        // Add clear history option if we have items
-        if (hasItems) {
-            this._menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
+        // Always add these options
+        this._menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
+        
+        // Add incognito mode toggle
+        let incognitoLabel = INCOGNITO_MODE ? "Disable Incognito Mode" : "Enable Incognito Mode";
+        let incognitoIconName = INCOGNITO_MODE ? 'dialog-password-symbolic' : 'changes-prevent-symbolic';
+        
+        let incognitoItem = new PopupMenu.PopupMenuItem(incognitoLabel);
+        let incognitoIcon = new St.Icon({
+            icon_name: incognitoIconName,
+            style_class: 'popup-menu-icon',
+            x_align: Clutter.ActorAlign.END
+        });
+        incognitoItem.add_child(incognitoIcon);
+        
+        incognitoItem.connect('activate', () => {
+            // Toggle incognito mode
+            INCOGNITO_MODE = !INCOGNITO_MODE;
             
-            // Add backup/restore section
+            // Update the settings
+            if (settings) {
+                settings.set_boolean('incognito-mode', INCOGNITO_MODE);
+            }
+            
+            // Show notification
+            this._showNotification(
+                INCOGNITO_MODE ? "Incognito Mode Enabled" : "Incognito Mode Disabled", 
+                INCOGNITO_MODE ? "Clipboard contents will not be saved to history" : "Clipboard contents will be saved to history again"
+            );
+            
+            // Update the panel icon if we have a reference to the panel
+            if (this._panelMenu) {
+                if (INCOGNITO_MODE) {
+                    this._panelMenu.icon.set_icon_name('dialog-password-symbolic');
+                    // Set the topbar text to Incognito
+                    this._panelMenu.setCurrentClipboardText("[Incognito]");
+                } else {
+                    this._panelMenu.icon.set_icon_name('edit-paste-symbolic');
+                    // Clear the topbar text
+                    this._panelMenu.setCurrentClipboardText("");
+                }
+            }
+            
+            // Rebuild menu with updated labels
+            this._filterItems(this._searchEntry.get_text());
+        });
+        this._menu.addMenuItem(incognitoItem);
+        
+        // Add a separator after incognito toggle
+        this._menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
+        
+        // Add backup/restore section if we have items
+        if (hasItems) {
             let backupItem = new PopupMenu.PopupMenuItem("Export Clipboard History");
             backupItem.connect('activate', () => {
                 this._exportHistory();
@@ -664,6 +713,14 @@ const ClipMateIndicator = GObject.registerClass(
             
             log(`ClipMate: Processing clipboard text: "${text.substring(0, 20)}${text.length > 20 ? '...' : ''}"`);
             
+            // If in incognito mode, update the display with masked text
+            if (INCOGNITO_MODE) {
+                log('ClipMate: In incognito mode - not saving to history');
+                // Show incognito indicator in panel instead of actual text
+                this.setCurrentClipboardText("[Incognito]");
+                return;
+            }
+            
             // Check if this text is already in our history
             let existingIndex = -1;
             for (let i = 0; i < clipHistory.length; i++) {
@@ -739,12 +796,27 @@ const ClipMateIndicator = GObject.registerClass(
             
             log(`ClipMate: Processing clipboard image (${mimeType})`);
             
+            // Skip if in incognito mode
+            if (INCOGNITO_MODE) {
+                log('ClipMate: In incognito mode - not saving image to history');
+                // Set panel text to indicate incognito mode
+                this.setCurrentClipboardText("[Incognito]");
+                // Still show a notification if enabled
+                if (NOTIFY_ON_COPY) {
+                    this._showNotification("Image Copied", "[Image - Incognito Mode]");
+                }
+                return;
+            }
+            
             // For images, always add as new since comparing image bytes reliably is difficult
             
             // Show notification if enabled
             if (NOTIFY_ON_COPY) {
                 this._showNotification("Image Copied", "[Image]");
             }
+            
+            // Update display in panel for images
+            this.setCurrentClipboardText("[Image]");
             
             // Add to history
             clipHistory.unshift({
@@ -900,7 +972,58 @@ const ClipMateIndicator = GObject.registerClass(
                 this.menu.addMenuItem(menuItem);
             }
 
-            if (clipHistory.length > 0) {
+            if (clipHistory.length > 0 || true) { // Always show this section
+                this.menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
+                
+                // Add incognito mode toggle
+                let incognitoLabel = INCOGNITO_MODE ? "Disable Incognito Mode" : "Enable Incognito Mode";
+                let incognitoIconName = INCOGNITO_MODE ? 'dialog-password-symbolic' : 'changes-prevent-symbolic';
+                
+                let incognitoItem = new PopupMenu.PopupMenuItem(incognitoLabel);
+                let incognitoIcon = new St.Icon({
+                    icon_name: incognitoIconName,
+                    style_class: 'popup-menu-icon',
+                    x_align: Clutter.ActorAlign.END
+                });
+                incognitoItem.add_child(incognitoIcon);
+                
+                incognitoItem.connect('activate', () => {
+                    // Toggle incognito mode
+                    INCOGNITO_MODE = !INCOGNITO_MODE;
+                    
+                    // Update the settings
+                    if (settings) {
+                        settings.set_boolean('incognito-mode', INCOGNITO_MODE);
+                    }
+                    
+                    // Show notification
+                    if (INCOGNITO_MODE) {
+                        this._showNotification(
+                            "Incognito Mode Enabled", 
+                            "Clipboard contents will not be saved to history"
+                        );
+                        
+                        // Change panel icon to indicate incognito mode
+                        this.icon.set_icon_name('dialog-password-symbolic');
+                        
+                        // Clear the topbar text when incognito mode is enabled
+                        this.setCurrentClipboardText("[Incognito]");
+                    } else {
+                        this._showNotification(
+                            "Incognito Mode Disabled", 
+                            "Clipboard contents will be saved to history again"
+                        );
+                        
+                        // Restore original panel icon
+                        this.icon.set_icon_name('edit-paste-symbolic');
+                    }
+                    
+                    // Rebuild menu with updated labels
+                    this._buildMenu();
+                });
+                this.menu.addMenuItem(incognitoItem);
+                
+                // Add a separator after incognito toggle
                 this.menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
                 
                 // Add backup/restore section
@@ -1283,6 +1406,7 @@ class Extension {
             CONFIRM_ON_CLEAR = settings.get_boolean('confirm-clear');
             ENABLE_KEYBINDING = settings.get_boolean('enable-keybindings');
             DEBUG_MODE = settings.get_boolean('debug-mode');
+            INCOGNITO_MODE = settings.get_boolean('incognito-mode');
             
             // Connect to settings changes
             this._settingsChangedId = settings.connect('changed', (settings, key) => {
@@ -1300,6 +1424,21 @@ class Extension {
                 } else if (key === 'debug-mode') {
                     DEBUG_MODE = settings.get_boolean(key);
                     log('ClipMate: Debug mode ' + (DEBUG_MODE ? 'enabled' : 'disabled'));
+                } else if (key === 'incognito-mode') {
+                    INCOGNITO_MODE = settings.get_boolean(key);
+                    log('ClipMate: Incognito mode ' + (INCOGNITO_MODE ? 'enabled' : 'disabled'));
+                    
+                    // Update panel icon if indicator exists
+                    if (this._indicator) {
+                        this._indicator.icon.set_icon_name(
+                            INCOGNITO_MODE ? 'dialog-password-symbolic' : 'edit-paste-symbolic'
+                        );
+                        
+                        // Clear the topbar text when incognito mode is enabled
+                        if (INCOGNITO_MODE) {
+                            this._indicator.setCurrentClipboardText("[Incognito]");
+                        }
+                    }
                 }
             });
         }
@@ -1313,8 +1452,13 @@ class Extension {
                 }
                 
                 // Create UI after loading history
-        this._indicator = new ClipMateIndicator();
-        Main.panel.addToStatusArea('clipmate', this._indicator);
+                this._indicator = new ClipMateIndicator();
+                Main.panel.addToStatusArea('clipmate', this._indicator);
+                
+                // Set the appropriate icon based on incognito mode
+                if (INCOGNITO_MODE) {
+                    this._indicator.icon.set_icon_name('dialog-password-symbolic');
+                }
                 
                 // Create popup menu
                 this._popupMenu = new ClipPopupMenu();
