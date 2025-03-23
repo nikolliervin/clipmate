@@ -102,23 +102,53 @@ class ClipPopupMenu {
         let searchLower = searchText.toLowerCase();
         let hasItems = false;
         
-        // Add filtered items
+        // Sort the items with favorites first
+        let favorites = [];
+        let nonFavorites = [];
+        
         for (let i = 0; i < clipHistory.length; i++) {
             let item = clipHistory[i];
             
-            // Only filter text items with content
-            if (item.type === ClipItemType.TEXT && 
-                item.content && 
-                (!searchLower || item.content.toLowerCase().indexOf(searchLower) !== -1)) {
-                let menuItem = this._createMenuItem(item);
-                this._menu.addMenuItem(menuItem);
-                hasItems = true;
-            } else if (item.type === ClipItemType.IMAGE && !searchLower) {
-                // Image items are shown only when no search text
-                let menuItem = this._createMenuItem(item);
+            // Only process items that match the search
+            if ((item.type === ClipItemType.TEXT && 
+                 item.content && 
+                 (!searchLower || item.content.toLowerCase().indexOf(searchLower) !== -1)) ||
+                (item.type === ClipItemType.IMAGE && !searchLower)) {
+                
+                if (item.favorite) {
+                    favorites.push(item);
+                } else {
+                    nonFavorites.push(item);
+                }
+            }
+        }
+        
+        // Add favorites first
+        if (favorites.length > 0) {
+            // Add a label for favorites section
+            let favoritesLabel = new PopupMenu.PopupMenuItem("Favorites");
+            favoritesLabel.actor.reactive = false;
+            favoritesLabel.actor.can_focus = false;
+            favoritesLabel.actor.add_style_class_name('favorites-section-label');
+            this._menu.addMenuItem(favoritesLabel);
+            
+            for (let i = 0; i < favorites.length; i++) {
+                let menuItem = this._createMenuItem(favorites[i]);
                 this._menu.addMenuItem(menuItem);
                 hasItems = true;
             }
+        
+            // Add a separator between favorites and non-favorites
+            if (nonFavorites.length > 0) {
+                this._menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
+            }
+        }
+        
+        // Add non-favorites
+        for (let i = 0; i < nonFavorites.length; i++) {
+            let menuItem = this._createMenuItem(nonFavorites[i]);
+            this._menu.addMenuItem(menuItem);
+            hasItems = true;
         }
         
         // Add clear history option if we have items
@@ -204,8 +234,27 @@ class ClipPopupMenu {
         log('ClipMate: History cleared from popup menu');
     }
 
+    _toggleFavorite(item) {
+        // Toggle the favorite status
+        item.favorite = !item.favorite;
+        
+        // Explicitly call log immediately to help debug
+        log(`ClipMate: Item favorite status toggled to ${item.favorite}`);
+        
+        // Update storage
+        Utils.writeRegistry(clipHistory);
+        
+        // Rebuild menu
+        this._filterItems(this._searchEntry.get_text());
+        
+        // Also update panel menu if it exists
+        if (this._panelMenu) {
+            this._panelMenu._buildMenu();
+        }
+    }
+
     _createMenuItem(item) {
-        // Create a box layout to hold both content and trash icon
+        // Create a box layout to hold content, star icon, and trash icon
         let menuItemBox = new St.BoxLayout({
             style_class: 'clipboard-item-box',
             x_expand: true,
@@ -243,47 +292,101 @@ class ClipPopupMenu {
             menuItemBox.add_child(imageLabel);
         }
         
-        // Create the trash icon button
+        // Create the star button - COMPLETELY REDESIGNED APPROACH
+        let starIconName = item.favorite ? 'starred-symbolic' : 'non-starred-symbolic';
+        
+        // Create a clickable actor instead of using St.Icon directly
+        let starActor = new Clutter.Actor({
+            reactive: true,
+            width: 24,
+            height: 24
+        });
+        
+        // Add the icon as a child of the actor
+        let starIcon = new St.Icon({
+            icon_name: starIconName,
+            style_class: 'clipboard-star-icon',
+            icon_size: 16
+        });
+        
+        // Create a container to hold and position the icon within the actor
+        let starBin = new St.Bin({
+            style_class: 'clipboard-star-button',
+            child: starIcon,
+            x_align: Clutter.ActorAlign.CENTER,
+            y_align: Clutter.ActorAlign.CENTER,
+            width: 24,
+            height: 24
+        });
+        
+        // Add the bin to the actor
+        starActor.add_child(starBin);
+        
+        // Add direct button-press-event handler to the actor
+        starActor.connect('button-press-event', (actor, event) => {
+            // Explicit debug log
+            log('ClipMate: Star actor clicked!');
+            
+            // Toggle favorite status
+            this._toggleFavorite(item);
+            
+            // Stop event propagation - super important!
+            return Clutter.EVENT_STOP;
+        });
+        
+        // Add star actor to menu box
+        menuItemBox.add_child(starActor);
+        
+        // Create the trash button - using same direct actor approach
+        let trashActor = new Clutter.Actor({
+            reactive: true,
+            width: 24,
+            height: 24
+        });
+        
         let trashIcon = new St.Icon({
             icon_name: 'user-trash-symbolic',
             style_class: 'clipboard-trash-icon',
             icon_size: 16
         });
         
-        let trashButton = new St.Button({
+        let trashBin = new St.Bin({
             style_class: 'clipboard-trash-button',
             child: trashIcon,
-            x_align: Clutter.ActorAlign.END,
+            x_align: Clutter.ActorAlign.CENTER,
             y_align: Clutter.ActorAlign.CENTER,
-            can_focus: true,
-            track_hover: true
+            width: 24,
+            height: 24
         });
         
-        // Connect the trash button click event
-        trashButton.connect('button-press-event', () => {
+        trashActor.add_child(trashBin);
+        
+        // Add direct button-press-event handler to the actor
+        trashActor.connect('button-press-event', (actor, event) => {
+            // Explicit debug log
+            log('ClipMate: Trash actor clicked!');
+            
+            // Remove item
             this._removeItemFromHistory(item);
+            
+            // Stop event propagation
             return Clutter.EVENT_STOP;
         });
         
-        menuItemBox.add_child(trashButton);
+        // Add trash actor to menu box
+        menuItemBox.add_child(trashActor);
         
-        // Create a custom menu item
+        // Create the menu item
         let menuItem = new PopupMenu.PopupBaseMenuItem({
-            style_class: 'clipboard-menu-item',
-            can_focus: true
+            style_class: 'clipboard-menu-item'
         });
         menuItem.add_child(menuItemBox);
         
-        // Connect the click event for copying (simplified approach)
+        // Connect click event for copying item content
         menuItem.connect('activate', () => {
             if (item.type === ClipItemType.TEXT) {
-                // Just copy to clipboard without trying to paste
                 Clipboard.set_text(CLIPBOARD_TYPE, item.content);
-                
-                // Close the menu
                 this._menu.close();
-                
-                // Show a notification that user should paste manually
                 this._showNotification("Copied to clipboard", "Press Ctrl+V to paste");
             }
             else if (item.type === ClipItemType.IMAGE) {
@@ -510,12 +613,28 @@ const ClipMateIndicator = GObject.registerClass(
                 clipHistory.unshift({
                     type: ClipItemType.TEXT,
                     content: text,
-                    timestamp: Date.now()
+                    timestamp: Date.now(),
+                    favorite: false
                 });
                 
                 // Trim history if needed
                 if (clipHistory.length > MAX_HISTORY) {
-                    clipHistory.pop();
+                    // Find the last non-favorite item to remove
+                    let indexToRemove = -1;
+                    for (let i = clipHistory.length - 1; i >= 0; i--) {
+                        if (!clipHistory[i].favorite) {
+                            indexToRemove = i;
+                            break;
+                        }
+                    }
+                    
+                    // If we found a non-favorite item, remove it
+                    if (indexToRemove >= 0) {
+                        clipHistory.splice(indexToRemove, 1);
+                    } else {
+                        // If all items are favorites, remove the oldest one
+                        clipHistory.pop();
+                    }
                 }
             }
             
@@ -549,12 +668,28 @@ const ClipMateIndicator = GObject.registerClass(
                 type: ClipItemType.IMAGE,
                 content: bytes,
                 mimeType: mimeType,
-                timestamp: Date.now()
+                timestamp: Date.now(),
+                favorite: false
             });
             
             // Trim history if needed
             if (clipHistory.length > MAX_HISTORY) {
-                clipHistory.pop();
+                // Find the last non-favorite item to remove
+                let indexToRemove = -1;
+                for (let i = clipHistory.length - 1; i >= 0; i--) {
+                    if (!clipHistory[i].favorite) {
+                        indexToRemove = i;
+                        break;
+                    }
+                }
+                
+                // If we found a non-favorite item, remove it
+                if (indexToRemove >= 0) {
+                    clipHistory.splice(indexToRemove, 1);
+                } else {
+                    // If all items are favorites, remove the oldest one
+                    clipHistory.pop();
+                }
             }
             
             // Update UI
@@ -643,9 +778,42 @@ const ClipMateIndicator = GObject.registerClass(
         _buildMenu() {
             this.menu.removeAll();
 
+            // Sort the items with favorites first
+            let favorites = [];
+            let nonFavorites = [];
+            
             for (let i = 0; i < clipHistory.length; i++) {
                 let item = clipHistory[i];
-                let menuItem = this._createMenuItem(item);
+                if (item.favorite) {
+                    favorites.push(item);
+                } else {
+                    nonFavorites.push(item);
+                }
+            }
+            
+            // Add favorites first
+            if (favorites.length > 0) {
+                // Add a label for favorites section
+                let favoritesLabel = new PopupMenu.PopupMenuItem("Favorites");
+                favoritesLabel.actor.reactive = false;
+                favoritesLabel.actor.can_focus = false;
+                favoritesLabel.actor.add_style_class_name('favorites-section-label');
+                this.menu.addMenuItem(favoritesLabel);
+                
+                for (let i = 0; i < favorites.length; i++) {
+                    let menuItem = this._createMenuItem(favorites[i]);
+                    this.menu.addMenuItem(menuItem);
+                }
+                
+                // Add a separator between favorites and non-favorites
+                if (nonFavorites.length > 0) {
+                    this.menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
+                }
+            }
+            
+            // Add non-favorites
+            for (let i = 0; i < nonFavorites.length; i++) {
+                let menuItem = this._createMenuItem(nonFavorites[i]);
                 this.menu.addMenuItem(menuItem);
             }
 
@@ -660,10 +828,11 @@ const ClipMateIndicator = GObject.registerClass(
         }
 
         _createMenuItem(item) {
-            // Create a box layout to hold both content and trash icon
+            // Create a box layout to hold content, star icon, and trash icon
             let menuItemBox = new St.BoxLayout({
                 style_class: 'clipboard-item-box',
-                x_expand: true
+                x_expand: true,
+                y_expand: true
             });
             
             // Handle different types of clipboard content
@@ -697,46 +866,101 @@ const ClipMateIndicator = GObject.registerClass(
                 menuItemBox.add_child(imageLabel);
             }
             
-            // Create the trash icon button
+            // Create the star button - COMPLETELY REDESIGNED APPROACH
+            let starIconName = item.favorite ? 'starred-symbolic' : 'non-starred-symbolic';
+            
+            // Create a clickable actor instead of using St.Icon directly
+            let starActor = new Clutter.Actor({
+                reactive: true,
+                width: 24,
+                height: 24
+            });
+            
+            // Add the icon as a child of the actor
+            let starIcon = new St.Icon({
+                icon_name: starIconName,
+                style_class: 'clipboard-star-icon',
+                icon_size: 16
+            });
+            
+            // Create a container to hold and position the icon within the actor
+            let starBin = new St.Bin({
+                style_class: 'clipboard-star-button',
+                child: starIcon,
+                x_align: Clutter.ActorAlign.CENTER,
+                y_align: Clutter.ActorAlign.CENTER,
+                width: 24,
+                height: 24
+            });
+            
+            // Add the bin to the actor
+            starActor.add_child(starBin);
+            
+            // Add direct button-press-event handler to the actor
+            starActor.connect('button-press-event', (actor, event) => {
+                // Explicit debug log
+                log('ClipMate: Star actor clicked in panel menu!');
+                
+                // Toggle favorite status
+                this._toggleFavorite(item);
+                
+                // Stop event propagation - super important!
+                return Clutter.EVENT_STOP;
+            });
+            
+            // Add star actor to menu box
+            menuItemBox.add_child(starActor);
+            
+            // Create the trash button - using same direct actor approach
+            let trashActor = new Clutter.Actor({
+                reactive: true,
+                width: 24,
+                height: 24
+            });
+            
             let trashIcon = new St.Icon({
                 icon_name: 'user-trash-symbolic',
                 style_class: 'clipboard-trash-icon',
                 icon_size: 16
             });
             
-            let trashButton = new St.Button({
+            let trashBin = new St.Bin({
                 style_class: 'clipboard-trash-button',
                 child: trashIcon,
-                x_align: Clutter.ActorAlign.END,
+                x_align: Clutter.ActorAlign.CENTER,
                 y_align: Clutter.ActorAlign.CENTER,
-                can_focus: true,
-                track_hover: true
+                width: 24,
+                height: 24
             });
             
-            // Connect the trash button click event
-            trashButton.connect('button-press-event', () => {
+            trashActor.add_child(trashBin);
+            
+            // Add direct button-press-event handler to the actor
+            trashActor.connect('button-press-event', (actor, event) => {
+                // Explicit debug log
+                log('ClipMate: Trash actor clicked in panel menu!');
+                
+                // Remove item
                 this._removeItemFromHistory(item);
+                
+                // Stop event propagation
                 return Clutter.EVENT_STOP;
             });
             
-            menuItemBox.add_child(trashButton);
+            // Add trash actor to menu box
+            menuItemBox.add_child(trashActor);
             
-            // Create a custom menu item
+            // Create the menu item
             let menuItem = new PopupMenu.PopupBaseMenuItem({
                 style_class: 'clipboard-menu-item'
             });
             menuItem.add_child(menuItemBox);
             
-            // Connect the click event for copying (simplified approach)
+            // Connect click event for copying item content
             menuItem.connect('activate', () => {
                 if (item.type === ClipItemType.TEXT) {
-                    // Just copy to clipboard without trying to paste
                     Clipboard.set_text(CLIPBOARD_TYPE, item.content);
-                    
-                    // Close the menu
                     this.menu.close();
-                    
-                    // Show a notification that user should paste manually
                     this._showNotification("Copied to clipboard", "Press Ctrl+V to paste");
                 }
                 else if (item.type === ClipItemType.IMAGE) {
@@ -747,6 +971,25 @@ const ClipMateIndicator = GObject.registerClass(
             });
             
             return menuItem;
+        }
+
+        _toggleFavorite(item) {
+            // Toggle the favorite status
+            item.favorite = !item.favorite;
+            
+            // Debug logging
+            log(`ClipMate: Item favorite status toggled to ${item.favorite} in panel menu`);
+            
+            // Update storage
+            Utils.writeRegistry(clipHistory);
+            
+            // Rebuild menus
+            this._buildMenu();
+            
+            // Also update popup menu if it exists
+            if (this._popupMenu) {
+                this._popupMenu._buildMenu();
+            }
         }
 
         destroy() {
