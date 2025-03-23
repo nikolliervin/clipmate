@@ -154,6 +154,23 @@ class ClipPopupMenu {
         // Add clear history option if we have items
         if (hasItems) {
             this._menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
+            
+            // Add backup/restore section
+            let backupItem = new PopupMenu.PopupMenuItem("Export Clipboard History");
+            backupItem.connect('activate', () => {
+                this._exportHistory();
+            });
+            this._menu.addMenuItem(backupItem);
+            
+            let restoreItem = new PopupMenu.PopupMenuItem("Import Clipboard History");
+            restoreItem.connect('activate', () => {
+                this._importHistory();
+            });
+            this._menu.addMenuItem(restoreItem);
+            
+            // Add a separator before clear
+            this._menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
+            
             let clearItem = new PopupMenu.PopupMenuItem("Clear History");
             clearItem.connect('activate', () => {
                 this._clearHistory();
@@ -472,6 +489,72 @@ class ClipPopupMenu {
             searchEntryTimeout = null;
         }
         this._menu.destroy();
+    }
+
+    _exportHistory() {
+        Utils.exportClipboardHistory((success, result) => {
+            if (success) {
+                this._showNotification(
+                    "Clipboard History Exported", 
+                    `Saved to: ${result}`
+                );
+            } else {
+                this._showNotification(
+                    "Export Failed", 
+                    `Error: ${result}`
+                );
+            }
+        });
+        
+        // Close the menu
+        this._menu.close();
+    }
+    
+    _importHistory() {
+        // This is a simplified version - in a real implementation you'd want a file picker
+        // But for GNOME Shell extensions, file pickers are complex without GTK
+        let homePath = GLib.get_home_dir();
+        let defaultPath = homePath + '/clipmate_backup.json'; 
+        
+        Modal.openModal(
+            "Import Clipboard History",
+            "To import your clipboard history:\n\n1. Look for exported files in your home directory (filenames start with clipmate_backup_)\n2. Rename the file you want to import to 'clipmate_backup.json'\n3. Make sure it's saved in your home directory (~)\n4. Click Import\n\nWarning: This will replace your current clipboard history!",
+            "Import",
+            "Cancel",
+            () => {
+                Utils.importClipboardHistory(defaultPath, (success, result) => {
+                    if (success) {
+                        this._showNotification(
+                            "Clipboard History Imported", 
+                            `Successfully imported ${result} items`
+                        );
+                        
+                        // Reload the history from storage
+                        Utils.readRegistry((history) => {
+                            if (Array.isArray(history)) {
+                                clipHistory = history;
+                                
+                                // Rebuild menu
+                                this._buildMenu();
+                                
+                                // Also update panel menu if it exists
+                                if (this._panelMenu) {
+                                    this._panelMenu._buildMenu();
+                                }
+                            }
+                        });
+                    } else {
+                        this._showNotification(
+                            "Import Failed", 
+                            `Error: ${result}. Make sure ~/clipmate_backup.json exists.`
+                        );
+                    }
+                });
+            }
+        );
+        
+        // Close the menu
+        this._menu.close();
     }
 }
 
@@ -819,6 +902,23 @@ const ClipMateIndicator = GObject.registerClass(
 
             if (clipHistory.length > 0) {
                 this.menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
+                
+                // Add backup/restore section
+                let backupItem = new PopupMenu.PopupMenuItem("Export Clipboard History");
+                backupItem.connect('activate', () => {
+                    this._exportHistory();
+                });
+                this.menu.addMenuItem(backupItem);
+                
+                let restoreItem = new PopupMenu.PopupMenuItem("Import Clipboard History");
+                restoreItem.connect('activate', () => {
+                    this._importHistory();
+                });
+                this.menu.addMenuItem(restoreItem);
+                
+                // Add a separator before clear
+                this.menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
+                
                 let clearItem = new PopupMenu.PopupMenuItem("Clear History");
                 clearItem.connect('activate', () => {
                     this._clearHistory();
@@ -990,6 +1090,72 @@ const ClipMateIndicator = GObject.registerClass(
             if (this._popupMenu) {
                 this._popupMenu._buildMenu();
             }
+        }
+
+        _exportHistory() {
+            Utils.exportClipboardHistory((success, result) => {
+                if (success) {
+                    this._showNotification(
+                        "Clipboard History Exported", 
+                        `Saved to: ${result}`
+                    );
+                } else {
+                    this._showNotification(
+                        "Export Failed", 
+                        `Error: ${result}`
+                    );
+                }
+            });
+            
+            // Close the menu
+            this.menu.close();
+        }
+        
+        _importHistory() {
+            // This is a simplified version - in a real implementation you'd want a file picker
+            // But for GNOME Shell extensions, file pickers are complex without GTK
+            let homePath = GLib.get_home_dir();
+            let defaultPath = homePath + '/clipmate_backup.json'; 
+            
+            Modal.openModal(
+                "Import Clipboard History",
+                "To import your clipboard history:\n\n1. Look for exported files in your home directory (filenames start with clipmate_backup_)\n2. Rename the file you want to import to 'clipmate_backup.json'\n3. Make sure it's saved in your home directory (~)\n4. Click Import\n\nWarning: This will replace your current clipboard history!",
+                "Import",
+                "Cancel",
+                () => {
+                    Utils.importClipboardHistory(defaultPath, (success, result) => {
+                        if (success) {
+                            this._showNotification(
+                                "Clipboard History Imported", 
+                                `Successfully imported ${result} items`
+                            );
+                            
+                            // Reload the history from storage
+                            Utils.readRegistry((history) => {
+                                if (Array.isArray(history)) {
+                                    clipHistory = history;
+                                    
+                                    // Rebuild menu
+                                    this._buildMenu();
+                                    
+                                    // Also update popup menu if it exists
+                                    if (this._popupMenu) {
+                                        this._popupMenu._buildMenu();
+                                    }
+                                }
+                            });
+                        } else {
+                            this._showNotification(
+                                "Import Failed", 
+                                `Error: ${result}. Make sure ~/clipmate_backup.json exists.`
+                            );
+                        }
+                    });
+                }
+            );
+            
+            // Close the menu
+            this.menu.close();
         }
 
         destroy() {

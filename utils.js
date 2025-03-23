@@ -204,4 +204,209 @@ function readRegistry(callback) {
         log(`ClipMate: Error in readRegistry: ${e.message}`);
         callback([]);
     }
+}
+
+// Export clipboard history to a user-selected file
+function exportClipboardHistory(callback) {
+    try {
+        // First check if we have any history to export
+        let historyFile = Gio.File.new_for_path(REGISTRY_PATH);
+        
+        if (!historyFile.query_exists(null)) {
+            log('ClipMate: No clipboard history to export');
+            if (typeof callback === 'function') {
+                callback(false, 'No clipboard history to export');
+            }
+            return;
+        }
+        
+        // Create the default filename with timestamp
+        let now = new Date();
+        let timestamp = now.getFullYear() + '-' + 
+                      String(now.getMonth() + 1).padStart(2, '0') + '-' + 
+                      String(now.getDate()).padStart(2, '0') + '_' + 
+                      String(now.getHours()).padStart(2, '0') + '-' + 
+                      String(now.getMinutes()).padStart(2, '0');
+        
+        let defaultFileName = 'clipmate_backup_' + timestamp + '.json';
+        let defaultPath = GLib.get_home_dir() + '/' + defaultFileName;
+        
+        // Read the current clipboard history
+        let [success, contents, etag] = historyFile.load_contents(null);
+        if (!success) {
+            log('ClipMate: Failed to read clipboard history for export');
+            if (typeof callback === 'function') {
+                callback(false, 'Failed to read clipboard history');
+            }
+            return;
+        }
+        
+        // Create the export file
+        let exportFile = Gio.File.new_for_path(defaultPath);
+        
+        try {
+            let [exportSuccess, exportEtag] = exportFile.replace_contents(
+                contents,
+                null,
+                false,
+                Gio.FileCreateFlags.REPLACE_DESTINATION,
+                null
+            );
+            
+            if (exportSuccess) {
+                log(`ClipMate: Successfully exported clipboard history to ${defaultPath}`);
+                if (typeof callback === 'function') {
+                    callback(true, defaultPath);
+                }
+            } else {
+                log('ClipMate: Failed to export clipboard history');
+                if (typeof callback === 'function') {
+                    callback(false, 'Export operation failed');
+                }
+            }
+        } catch (writeError) {
+            log(`ClipMate: Error writing export file: ${writeError.message}`);
+            if (typeof callback === 'function') {
+                callback(false, writeError.message);
+            }
+        }
+    } catch (e) {
+        log(`ClipMate: Error in exportClipboardHistory: ${e.message}`);
+        if (typeof callback === 'function') {
+            callback(false, e.message);
+        }
+    }
+}
+
+// Import clipboard history from a user-selected file
+function importClipboardHistory(filePath, callback) {
+    try {
+        if (!filePath) {
+            log('ClipMate: No file specified for import');
+            if (typeof callback === 'function') {
+                callback(false, 'No file specified');
+            }
+            return;
+        }
+        
+        let importFile = Gio.File.new_for_path(filePath);
+        
+        if (!importFile.query_exists(null)) {
+            log(`ClipMate: Import file ${filePath} does not exist`);
+            if (typeof callback === 'function') {
+                callback(false, 'File does not exist');
+            }
+            return;
+        }
+        
+        // Try to read the import file
+        try {
+            let [success, contents, etag] = importFile.load_contents(null);
+            
+            if (!success) {
+                log('ClipMate: Failed to read import file');
+                if (typeof callback === 'function') {
+                    callback(false, 'Failed to read import file');
+                }
+                return;
+            }
+            
+            // Validate the content as JSON
+            let contentsStr;
+            if (contents instanceof Uint8Array) {
+                contentsStr = new TextDecoder().decode(contents);
+            } else {
+                contentsStr = contents.toString();
+            }
+            
+            try {
+                let importedData = JSON.parse(contentsStr);
+                
+                if (!Array.isArray(importedData)) {
+                    log('ClipMate: Import file contains invalid data (not an array)');
+                    if (typeof callback === 'function') {
+                        callback(false, 'Invalid data format (not an array)');
+                    }
+                    return;
+                }
+                
+                // Validate items in the array
+                let validItems = importedData.filter(item => 
+                    item && 
+                    (item.type === 0 || item.type === 1) && 
+                    (item.type !== 0 || item.content)
+                );
+                
+                if (validItems.length === 0) {
+                    log('ClipMate: No valid clipboard items found in import file');
+                    if (typeof callback === 'function') {
+                        callback(false, 'No valid clipboard items found');
+                    }
+                    return;
+                }
+                
+                // Create directory if it doesn't exist
+                let dirFile = Gio.File.new_for_path(REGISTRY_DIR);
+                if (!dirFile.query_exists(null)) {
+                    try {
+                        dirFile.make_directory_with_parents(null);
+                    } catch (dirError) {
+                        log(`ClipMate: Failed to create directory: ${dirError.message}`);
+                        if (typeof callback === 'function') {
+                            callback(false, 'Failed to create storage directory');
+                        }
+                        return;
+                    }
+                }
+                
+                // Write the validated data to the registry file
+                let historyFile = Gio.File.new_for_path(REGISTRY_PATH);
+                let bytes = new GLib.Bytes(contentsStr);
+                
+                try {
+                    let [writeSuccess, writeEtag] = historyFile.replace_contents(
+                        bytes.toArray(),
+                        null,
+                        false,
+                        Gio.FileCreateFlags.REPLACE_DESTINATION,
+                        null
+                    );
+                    
+                    if (writeSuccess) {
+                        log(`ClipMate: Successfully imported ${validItems.length} clipboard items`);
+                        if (typeof callback === 'function') {
+                            callback(true, validItems.length);
+                        }
+                    } else {
+                        log('ClipMate: Failed to save imported history file');
+                        if (typeof callback === 'function') {
+                            callback(false, 'Failed to save imported data');
+                        }
+                    }
+                } catch (writeError) {
+                    log(`ClipMate: Error writing imported data: ${writeError.message}`);
+                    if (typeof callback === 'function') {
+                        callback(false, writeError.message);
+                    }
+                }
+                
+            } catch (parseError) {
+                log(`ClipMate: Error parsing import file: ${parseError.message}`);
+                if (typeof callback === 'function') {
+                    callback(false, 'Invalid JSON format');
+                }
+            }
+            
+        } catch (readError) {
+            log(`ClipMate: Error reading import file: ${readError.message}`);
+            if (typeof callback === 'function') {
+                callback(false, readError.message);
+            }
+        }
+    } catch (e) {
+        log(`ClipMate: Error in importClipboardHistory: ${e.message}`);
+        if (typeof callback === 'function') {
+            callback(false, e.message);
+        }
+    }
 } 
