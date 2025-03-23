@@ -20,7 +20,31 @@
     icon-size: 16px;
 }
 
+.clipboard-star-button {
+    border-radius: 9999px;
+    padding: 4px;
+    margin-right: 4px;
+}
+
+.clipboard-star-button:hover {
+    background-color: rgba(255, 215, 0, 0.2);
+}
+
+.clipboard-star-icon {
+    icon-size: 16px;
+    color: #ffd700;
+}
+
 .clipboard-image-icon {
     icon-size: 16px;
     color: #42a5f5;
+}
+
+.favorites-section-label {
+    font-weight: bold;
+    color: #ffd700;
+    background-color: rgba(255, 215, 0, 0.1);
+    border-radius: 4px;
+    margin: 2px 0;
+    padding: 2px 0;
 } 

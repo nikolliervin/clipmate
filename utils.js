@@ -63,7 +63,8 @@ function prepareRegistryForSaving(registry) {
             
             let processedItem = {
                 type: item.type,
-                timestamp: item.timestamp || Date.now()
+                timestamp: item.timestamp || Date.now(),
+                favorite: !!item.favorite
             };
             
             if (item.type === 0) { // TEXT
